@@ -42,6 +42,7 @@
 #include <vector>
 #include <memory>
 
+#include "a2time.h"
 #include "TimerA2.h"
 #include "A2STR.h"
 #include "ValueBase.h"
@@ -68,6 +69,7 @@ private:
   std::vector<std::string> pieceHashes_;
 
   NetStat netStat_;
+  time_t downloadStartTime_;
 
   Timer downloadStopTime_;
 
@@ -209,6 +211,8 @@ public:
   void resetDownloadStartTime();
 
   void resetDownloadStopTime();
+
+  time_t getDownloadStartTime() const { return downloadStartTime_; }
 
   const Timer& getDownloadStopTime() const { return downloadStopTime_; }
 

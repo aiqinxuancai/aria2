@@ -36,7 +36,9 @@
 
 #include <cassert>
 #include <algorithm>
+#include <cctype>
 #include <sstream>
+#include <unordered_set>
 
 #include "Logger.h"
 #include "LogFactory.h"
@@ -54,6 +56,7 @@
 #include "DownloadContext.h"
 #include "DiskAdaptor.h"
 #include "FileEntry.h"
+#include "File.h"
 #include "prefs.h"
 #include "message.h"
 #include "FeatureConfig.h"
@@ -99,6 +102,7 @@ const char KEY_GID[] = "gid";
 const char KEY_ERROR_CODE[] = "errorCode";
 const char KEY_ERROR_MESSAGE[] = "errorMessage";
 const char KEY_STATUS[] = "status";
+const char KEY_START_TIME[] = "startTime";
 const char KEY_TOTAL_LENGTH[] = "totalLength";
 const char KEY_COMPLETED_LENGTH[] = "completedLength";
 const char KEY_DOWNLOAD_SPEED[] = "downloadSpeed";
@@ -611,6 +615,21 @@ bool requested_key(const std::vector<std::string>& keys, const std::string& k)
 {
   return keys.empty() || std::find(keys.begin(), keys.end(), k) != keys.end();
 }
+
+
+bool looksLikePath(const std::string& name)
+{
+  if (name.find('/') != std::string::npos ||
+      name.find('\\') != std::string::npos) {
+    return true;
+  }
+  if (name.size() >= 2 &&
+      std::isalpha(static_cast<unsigned char>(name[0])) &&
+      name[1] == ':') {
+    return true;
+  }
+  return false;
+}
 } // namespace
 
 void gatherProgressCommon(Dict* entryDict,
@@ -652,6 +671,11 @@ void gatherProgressCommon(Dict* entryDict,
     }
   }
   auto& dctx = group->getDownloadContext();
+  if (requested_key(keys, KEY_START_TIME)) {
+    entryDict->put(KEY_START_TIME,
+                   util::itos(static_cast<int64_t>(
+                       dctx->getDownloadStartTime())));
+  }
   if (requested_key(keys, KEY_PIECE_LENGTH)) {
     entryDict->put(KEY_PIECE_LENGTH, util::itos(dctx->getPieceLength()));
   }
@@ -840,6 +864,10 @@ void gatherStoppedDownload(Dict* entryDict,
     else {
       entryDict->put(KEY_STATUS, VLB_ERROR);
     }
+  }
+  if (requested_key(keys, KEY_START_TIME)) {
+    entryDict->put(KEY_START_TIME,
+                   util::itos(static_cast<int64_t>(ds->startTime)));
   }
   if (requested_key(keys, KEY_FOLLOWED_BY)) {
     if (!ds->followedBy.empty()) {
@@ -1104,6 +1132,79 @@ RemoveDownloadResultRpcMethod::process(const RpcRequest& req, DownloadEngine* e)
                           GroupId::toHex(gid).c_str()));
   }
   return createOKResponse();
+}
+
+std::unique_ptr<ValueBase>
+GetCompletedFilesRpcMethod::process(const RpcRequest& req,
+                                     DownloadEngine* e)
+{
+  auto list = List::g();
+  std::unordered_set<std::string> seen;
+  const auto& results = e->getRequestGroupMan()->getDownloadResults();
+  for (auto& dr : results) {
+    if (dr->result != error_code::FINISHED) {
+      continue;
+    }
+    for (auto& fe : dr->fileEntries) {
+      if (!fe->isRequested()) {
+        continue;
+      }
+      const auto& path = fe->getPath();
+      if (path.empty()) {
+        continue;
+      }
+      if (seen.insert(path).second) {
+        list->append(path);
+      }
+    }
+  }
+  return std::move(list);
+}
+
+std::unique_ptr<ValueBase>
+RenameCompletedFileRpcMethod::process(const RpcRequest& req,
+                                       DownloadEngine* e)
+{
+  const String* srcParam = checkRequiredParam<String>(req, 0);
+  const String* destParam = checkRequiredParam<String>(req, 1);
+  const std::string& srcPath = srcParam->s();
+  const std::string& destInput = destParam->s();
+  if (srcPath.empty() || destInput.empty()) {
+    throw DL_ABORT_EX("Source and destination must not be empty.");
+  }
+  if (looksLikePath(destInput)) {
+    throw DL_ABORT_EX("Destination must be a file name without path.");
+  }
+  std::string destPath =
+      util::applyDir(File(srcPath).getDirname(), destInput);
+  const auto& results = e->getRequestGroupMan()->getDownloadResults();
+  for (auto& dr : results) {
+    if (dr->result != error_code::FINISHED) {
+      continue;
+    }
+    for (auto& fe : dr->fileEntries) {
+      if (!fe->isRequested()) {
+        continue;
+      }
+      if (fe->getPath() != srcPath) {
+        continue;
+      }
+      if (destPath != srcPath) {
+        File srcFile(srcPath);
+        if (!srcFile.exists()) {
+          throw DL_ABORT_EX(fmt("File does not exist: %s", srcPath.c_str()));
+        }
+        if (!srcFile.renameTo(destPath)) {
+          throw DL_ABORT_EX(fmt("Failed to rename %s to %s",
+                                srcPath.c_str(), destPath.c_str()));
+        }
+      }
+      fe->setPath(destPath);
+      return createOKResponse();
+    }
+  }
+  throw DL_ABORT_EX(fmt("No completed file matches path: %s",
+                        srcPath.c_str()));
 }
 
 std::unique_ptr<ValueBase> ChangeOptionRpcMethod::process(const RpcRequest& req,

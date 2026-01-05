@@ -248,6 +248,22 @@ public:
   static const char* getMethodName() { return "aria2.removeDownloadResult"; }
 };
 
+class GetCompletedFilesRpcMethod : public RpcMethod {
+protected:
+  virtual std::unique_ptr<ValueBase> process(const RpcRequest& req,
+                                             DownloadEngine* e) CXX11_OVERRIDE;
+public:
+  static const char* getMethodName() { return "aria2.getCompletedFiles"; }
+};
+
+class RenameCompletedFileRpcMethod : public RpcMethod {
+protected:
+  virtual std::unique_ptr<ValueBase> process(const RpcRequest& req,
+                                             DownloadEngine* e) CXX11_OVERRIDE;
+public:
+  static const char* getMethodName() { return "aria2.renameCompletedFile"; }
+};
+
 class GetUrisRpcMethod : public RpcMethod {
 protected:
   virtual std::unique_ptr<ValueBase> process(const RpcRequest& req,

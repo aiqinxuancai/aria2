@@ -43,6 +43,7 @@ DownloadResult::DownloadResult()
     : belongsTo(0),
       sessionDownloadLength(0),
       sessionTime(0),
+      startTime(0),
       totalLength(0),
       completedLength(0),
       uploadLength(0),

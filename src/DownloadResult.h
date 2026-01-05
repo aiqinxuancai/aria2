@@ -37,6 +37,8 @@
 
 #include "common.h"
 
+#include "a2time.h"
+
 #include <stdint.h>
 
 #include <string>
@@ -61,6 +63,8 @@ struct DownloadResult {
   uint64_t sessionDownloadLength;
 
   std::chrono::milliseconds sessionTime;
+
+  time_t startTime;
 
   int64_t totalLength;
 

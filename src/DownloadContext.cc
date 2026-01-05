@@ -50,6 +50,7 @@ namespace aria2 {
 DownloadContext::DownloadContext()
     : ownerRequestGroup_(nullptr),
       attrs_(MAX_CTX_ATTR),
+      downloadStartTime_(0),
       downloadStopTime_(Timer::zero()),
       pieceLength_(0),
       checksumVerified_(false),
@@ -66,6 +67,7 @@ DownloadContext::DownloadContext(int32_t pieceLength, int64_t totalLength,
                                  std::string path)
     : ownerRequestGroup_(nullptr),
       attrs_(MAX_CTX_ATTR),
+      downloadStartTime_(0),
       downloadStopTime_(Timer::zero()),
       pieceLength_(pieceLength),
       checksumVerified_(false),
@@ -85,6 +87,8 @@ DownloadContext::~DownloadContext() = default;
 void DownloadContext::resetDownloadStartTime()
 {
   downloadStopTime_ = Timer::zero();
+  time_t now = time(nullptr);
+  downloadStartTime_ = now == static_cast<time_t>(-1) ? 0 : now;
   netStat_.downloadStart();
 }
 

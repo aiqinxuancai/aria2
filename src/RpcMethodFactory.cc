@@ -82,6 +82,8 @@ std::vector<std::string> rpcMethodNames = {
     "aria2.changeGlobalOption",
     "aria2.purgeDownloadResult",
     "aria2.removeDownloadResult",
+    "aria2.getCompletedFiles",
+    "aria2.renameCompletedFile",
     "aria2.getVersion",
     "aria2.getSessionInfo",
     "aria2.shutdown",
@@ -225,6 +227,14 @@ std::unique_ptr<RpcMethod> createMethod(const std::string& methodName)
 
   if (methodName == RemoveDownloadResultRpcMethod::getMethodName()) {
     return make_unique<RemoveDownloadResultRpcMethod>();
+  }
+
+  if (methodName == GetCompletedFilesRpcMethod::getMethodName()) {
+    return make_unique<GetCompletedFilesRpcMethod>();
+  }
+
+  if (methodName == RenameCompletedFileRpcMethod::getMethodName()) {
+    return make_unique<RenameCompletedFileRpcMethod>();
   }
 
   if (methodName == GetVersionRpcMethod::getMethodName()) {

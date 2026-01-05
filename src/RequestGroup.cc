@@ -1181,6 +1181,8 @@ std::shared_ptr<DownloadResult> RequestGroup::createDownloadResult() const
   res->sessionTime = std::chrono::duration_cast<std::chrono::milliseconds>(
       downloadContext_->calculateSessionTime());
 
+  res->startTime = downloadContext_->getDownloadStartTime();
+
   auto result = downloadResult();
   res->result = result.first;
   res->resultMessage = result.second;
