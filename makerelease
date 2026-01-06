@@ -2,6 +2,7 @@
 
 VERSION=$1
 PREV_VERSION=$2
+ARIA2_REPO=${ARIA2_REPO:-aria2/aria2}
 
 git checkout refs/tags/release-$VERSION
 sed -i -E "s|AC_INIT\\(\\[aria2\\],\\[[^]]+\\]|AC_INIT([aria2],[$VERSION]|" configure.ac
@@ -24,6 +25,7 @@ release_mingw()
 	   --build-arg HOST=$HOST \
 	   --build-arg ARIA2_VERSION=release-$VERSION \
 	   --build-arg ARIA2_REF=refs/tags/release-$VERSION \
+	   --build-arg ARIA2_REPO=$ARIA2_REPO \
 	   -t aria2-mingw-$HOST - < Dockerfile.mingw
 
     docker run --rm -it -v $PWD/mingw-out:/out aria2-mingw-$HOST \
@@ -45,6 +47,7 @@ mkdir -p android-out
 
 docker build \
        --build-arg ARIA2_VERSION=release-$VERSION \
+       --build-arg ARIA2_REPO=$ARIA2_REPO \
        -t aria2-android - < Dockerfile.android
 
 docker run --rm -it -v $PWD/android-out:/out aria2-android \

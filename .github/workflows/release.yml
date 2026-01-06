@@ -19,6 +19,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-22.04
+    env:
+      ARIA2_REPO: ${{ github.repository }}
 
     steps:
       - uses: actions/checkout@v6
