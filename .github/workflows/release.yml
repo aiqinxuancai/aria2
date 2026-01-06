@@ -78,14 +78,19 @@ jobs:
         run: |
           sh ./makerelease "${{ steps.versions.outputs.version }}" "${{ steps.versions.outputs.prev_version }}"
 
+      - name: List release artifacts
+        shell: bash
+        run: |
+          ls -la aria2-* || true
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            aria2-${{ steps.versions.outputs.version }}.tar.bz2
-            aria2-${{ steps.versions.outputs.version }}.tar.gz
-            aria2-${{ steps.versions.outputs.version }}.tar.xz
-            aria2-${{ steps.versions.outputs.version }}-win-32bit-build1.zip
-            aria2-${{ steps.versions.outputs.version }}-win-64bit-build1.zip
-            aria2-${{ steps.versions.outputs.version }}-aarch64-linux-android-build1.zip
+            aria2-*.tar.bz2
+            aria2-*.tar.gz
+            aria2-*.tar.xz
+            aria2-*-win-32bit-build1.zip
+            aria2-*-win-64bit-build1.zip
+            aria2-*-aarch64-linux-android-build1.zip
           fail_on_unmatched_files: true

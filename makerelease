@@ -4,6 +4,7 @@ VERSION=$1
 PREV_VERSION=$2
 
 git checkout refs/tags/release-$VERSION
+sed -i -E "s|AC_INIT\\(\\[aria2\\],\\[[^]]+\\]|AC_INIT([aria2],[$VERSION]|" configure.ac
 git log --pretty=fuller --date=short refs/tags/release-$PREV_VERSION..HEAD > ChangeLog
 
 autoreconf -i
