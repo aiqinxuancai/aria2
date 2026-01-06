@@ -43,6 +43,7 @@ jobs:
             libsqlite3-dev \
             libssh2-1-dev \
             libcppunit-dev \
+            zip \
             bzip2 \
             xz-utils
 
@@ -76,7 +77,8 @@ jobs:
       - name: Build release artifacts
         shell: bash
         run: |
-          sh ./makerelease "${{ steps.versions.outputs.version }}" "${{ steps.versions.outputs.prev_version }}"
+          chmod +x makerelease mingw-release android-release
+          ./makerelease "${{ steps.versions.outputs.version }}" "${{ steps.versions.outputs.prev_version }}"
 
       - name: List release artifacts
         shell: bash
