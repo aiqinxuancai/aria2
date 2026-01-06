@@ -62,21 +62,12 @@ jobs:
           if [[ -n "${{ inputs.prev_version || '' }}" ]]; then
             PREV_VERSION="${{ inputs.prev_version }}"
           else
-            mapfile -t TAGS < <(git tag --list 'release-*' --sort=v:refname)
-            PREV_TAG=""
-            for i in "${!TAGS[@]}"; do
-              if [[ "${TAGS[$i]}" == "release-${VERSION}" ]]; then
-                if [[ $i -gt 0 ]]; then
-                  PREV_TAG="${TAGS[$((i-1))]}"
-                fi
-                break
-              fi
-            done
-            if [[ -z "$PREV_TAG" ]]; then
-              echo "Could not determine previous release tag. Set prev_version input."
-              exit 1
+            if PREV_TAG="$(git describe --tags --abbrev=0 --match 'release-*' "refs/tags/release-${VERSION}^" 2>/dev/null)"; then
+              PREV_VERSION="${PREV_TAG#release-}"
+            else
+              echo "No previous release tag found; using current version as baseline."
+              PREV_VERSION="$VERSION"
             fi
-            PREV_VERSION="${PREV_TAG#release-}"
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
