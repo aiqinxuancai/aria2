@@ -28,7 +28,7 @@ release_mingw()
 	   --build-arg ARIA2_REPO=$ARIA2_REPO \
 	   -t aria2-mingw-$HOST - < Dockerfile.mingw
 
-    docker run --rm -it -v $PWD/mingw-out:/out aria2-mingw-$HOST \
+    docker run --rm -v $PWD/mingw-out:/out aria2-mingw-$HOST \
 	   cp /aria2/src/aria2c.exe /out
 
     ./mingw-release
@@ -50,7 +50,7 @@ docker build \
        --build-arg ARIA2_REPO=$ARIA2_REPO \
        -t aria2-android - < Dockerfile.android
 
-docker run --rm -it -v $PWD/android-out:/out aria2-android \
+docker run --rm -v $PWD/android-out:/out aria2-android \
        cp /root/build/aria2/src/aria2c /out
 
 ./android-release
