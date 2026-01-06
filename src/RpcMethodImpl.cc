@@ -1138,24 +1138,29 @@ std::unique_ptr<ValueBase>
 GetCompletedFilesRpcMethod::process(const RpcRequest& req,
                                      DownloadEngine* e)
 {
+  const String* gidParam = checkRequiredParam<String>(req, 0);
+
+  a2_gid_t gid = str2Gid(gidParam);
   auto list = List::g();
+  auto dr = e->getRequestGroupMan()->findDownloadResult(gid);
+  if (!dr) {
+    throw DL_ABORT_EX(fmt("No download result is available for GID#%s",
+                          GroupId::toHex(gid).c_str()));
+  }
+  if (dr->result != error_code::FINISHED) {
+    return std::move(list);
+  }
   std::unordered_set<std::string> seen;
-  const auto& results = e->getRequestGroupMan()->getDownloadResults();
-  for (auto& dr : results) {
-    if (dr->result != error_code::FINISHED) {
+  for (auto& fe : dr->fileEntries) {
+    if (!fe->isRequested()) {
       continue;
     }
-    for (auto& fe : dr->fileEntries) {
-      if (!fe->isRequested()) {
-        continue;
-      }
-      const auto& path = fe->getPath();
-      if (path.empty()) {
-        continue;
-      }
-      if (seen.insert(path).second) {
-        list->append(path);
-      }
+    const auto& path = fe->getPath();
+    if (path.empty()) {
+      continue;
+    }
+    if (seen.insert(path).second) {
+      list->append(path);
     }
   }
   return std::move(list);
@@ -1165,8 +1170,10 @@ std::unique_ptr<ValueBase>
 RenameCompletedFileRpcMethod::process(const RpcRequest& req,
                                        DownloadEngine* e)
 {
-  const String* srcParam = checkRequiredParam<String>(req, 0);
-  const String* destParam = checkRequiredParam<String>(req, 1);
+  const String* gidParam = checkRequiredParam<String>(req, 0);
+  const String* srcParam = checkRequiredParam<String>(req, 1);
+  const String* destParam = checkRequiredParam<String>(req, 2);
+  a2_gid_t gid = str2Gid(gidParam);
   const std::string& srcPath = srcParam->s();
   const std::string& destInput = destParam->s();
   if (srcPath.empty() || destInput.empty()) {
@@ -1177,34 +1184,37 @@ RenameCompletedFileRpcMethod::process(const RpcRequest& req,
   }
   std::string destPath =
       util::applyDir(File(srcPath).getDirname(), destInput);
-  const auto& results = e->getRequestGroupMan()->getDownloadResults();
-  for (auto& dr : results) {
-    if (dr->result != error_code::FINISHED) {
+  auto dr = e->getRequestGroupMan()->findDownloadResult(gid);
+  if (!dr) {
+    throw DL_ABORT_EX(fmt("No download result is available for GID#%s",
+                          GroupId::toHex(gid).c_str()));
+  }
+  if (dr->result != error_code::FINISHED) {
+    throw DL_ABORT_EX(fmt("Download is not completed for GID#%s",
+                          GroupId::toHex(gid).c_str()));
+  }
+  for (auto& fe : dr->fileEntries) {
+    if (!fe->isRequested()) {
       continue;
     }
-    for (auto& fe : dr->fileEntries) {
-      if (!fe->isRequested()) {
-        continue;
-      }
-      if (fe->getPath() != srcPath) {
-        continue;
-      }
-      if (destPath != srcPath) {
-        File srcFile(srcPath);
-        if (!srcFile.exists()) {
-          throw DL_ABORT_EX(fmt("File does not exist: %s", srcPath.c_str()));
-        }
-        if (!srcFile.renameTo(destPath)) {
-          throw DL_ABORT_EX(fmt("Failed to rename %s to %s",
-                                srcPath.c_str(), destPath.c_str()));
-        }
-      }
-      fe->setPath(destPath);
-      return createOKResponse();
+    if (fe->getPath() != srcPath) {
+      continue;
     }
+    if (destPath != srcPath) {
+      File srcFile(srcPath);
+      if (!srcFile.exists()) {
+        throw DL_ABORT_EX(fmt("File does not exist: %s", srcPath.c_str()));
+      }
+      if (!srcFile.renameTo(destPath)) {
+        throw DL_ABORT_EX(fmt("Failed to rename %s to %s", srcPath.c_str(),
+                              destPath.c_str()));
+      }
+    }
+    fe->setPath(destPath);
+    return createOKResponse();
   }
-  throw DL_ABORT_EX(fmt("No completed file matches path: %s",
-                        srcPath.c_str()));
+  throw DL_ABORT_EX(fmt("No completed file matches path for GID#%s: %s",
+                        GroupId::toHex(gid).c_str(), srcPath.c_str()));
 }
 
 std::unique_ptr<ValueBase> ChangeOptionRpcMethod::process(const RpcRequest& req,
