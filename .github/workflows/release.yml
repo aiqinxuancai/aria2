@@ -1,0 +1,100 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "release-*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version like 1.37.0 (optional; defaults from tag)"
+        required: false
+      prev_version:
+        description: "Previous version like 1.36.0 (optional; auto-detects if empty)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            g++-12 \
+            autoconf \
+            automake \
+            autotools-dev \
+            autopoint \
+            libtool \
+            pkg-config \
+            libssl-dev \
+            libgnutls28-dev \
+            libc-ares-dev \
+            zlib1g-dev \
+            libsqlite3-dev \
+            libssh2-1-dev \
+            libcppunit-dev \
+            bzip2 \
+            xz-utils
+
+      - name: Determine versions
+        id: versions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${{ inputs.version || '' }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            REF_NAME="${GITHUB_REF_NAME}"
+            VERSION="${REF_NAME#release-}"
+          fi
+
+          if [[ -n "${{ inputs.prev_version || '' }}" ]]; then
+            PREV_VERSION="${{ inputs.prev_version }}"
+          else
+            mapfile -t TAGS < <(git tag --list 'release-*' --sort=v:refname)
+            PREV_TAG=""
+            for i in "${!TAGS[@]}"; do
+              if [[ "${TAGS[$i]}" == "release-${VERSION}" ]]; then
+                if [[ $i -gt 0 ]]; then
+                  PREV_TAG="${TAGS[$((i-1))]}"
+                fi
+                break
+              fi
+            done
+            if [[ -z "$PREV_TAG" ]]; then
+              echo "Could not determine previous release tag. Set prev_version input."
+              exit 1
+            fi
+            PREV_VERSION="${PREV_TAG#release-}"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prev_version=$PREV_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build release artifacts
+        shell: bash
+        run: |
+          sh ./makerelease "${{ steps.versions.outputs.version }}" "${{ steps.versions.outputs.prev_version }}"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            aria2-${{ steps.versions.outputs.version }}.tar.bz2
+            aria2-${{ steps.versions.outputs.version }}.tar.gz
+            aria2-${{ steps.versions.outputs.version }}.tar.xz
+            aria2-${{ steps.versions.outputs.version }}-win-32bit-build1.zip
+            aria2-${{ steps.versions.outputs.version }}-win-64bit-build1.zip
+            aria2-${{ steps.versions.outputs.version }}-aarch64-linux-android-build1.zip
+          fail_on_unmatched_files: true
